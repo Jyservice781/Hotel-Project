@@ -1,51 +1,59 @@
-import {Alert, Button, Container, Table} from "react-bootstrap";
+import {Button, Container, Pagination, Table} from "react-bootstrap";
 import React, {useEffect, useState} from "react";
 import axios from "axios";
-import {useLocation, useNavigate, useParams} from "react-router-dom";
-import UserProfile  from "../components/userProfile/UserProfile";
+import {useNavigate, useParams} from "react-router-dom";
+import UserProfile from "../components/userProfile/UserProfile";
 
 let ReplyList = () => {
     let [data, setData] = useState({replyList: []})
+    let [page, setPage] = useState(1)
+    let [totalPages, setTotalPages] = useState(1)
     let navigate = useNavigate();
 
-    // 추가
     let params = useParams()
-    let id = parseInt(params.id)
-    let location = useLocation()
+
     // userId와 hotelId 정보가 없기 때문에 '1' 넣음
-    let userInfo = location.state && location.state.userInfo ? location.state.userInfo : {id:1};
+    let userInfo = {id: 1}
     let hotelId = parseInt(params.hotelId) || 1
 
-    //프로필 이미지 : public 폴더에 이미지 4개 임시 추가 
-    let getRandomProfileImage = () => {
-        let images = ['profile1.jpg','profile2.jpg','profile3.jpg','profile4.jpg']
-        let ramdomIndex = Math.floor(Math.random() * images.length)
-        return `/${images[ramdomIndex]}`
+    // 별점 합계 및 평균
+    let sum = data.replyList.reduce((accumulator, currentValue) => {
+        return accumulator + currentValue.score
+    }, 0)
+    let average = sum / data.replyList.length
+
+    // 임시 프로필 이미지 URL 생성
+    let profileImage = () => {
+        let images = ['profile1.jpg', 'profile2.jpg', 'profile3.jpg', 'profile4.jpg']
+        let randomIndex = Math.floor(Math.random() * images.length)
+        return `/${images[randomIndex]}`
     }
 
     useEffect(() => {
         let selectList = async () => {
-            // 이부분에 메인에서 넘어오는 호텔 Id 를 받아오도록 연결 시에 수정해야함
             let resp = await axios
-                .get(`http://localhost:8080/reply/selectList/${hotelId}`);
+                .get(`http://localhost:8080/reply/selectList/${hotelId}`, {
+                    params: {page: page, size: 10}
+                });
 
             if (resp.status === 200) {
                 let replyListWithImages = resp.data.replyList.map(reply => ({
                     ...reply,
-                    profileImage: getRandomProfileImage()
+                    profileImage: profileImage()
                 }))
                 setData({
                     replyList: replyListWithImages
                 })
+                setTotalPages(Math.ceil(resp.data.totalCount / 10))
             }
         }
         selectList();
-    }, [hotelId])
+    }, [hotelId, page])
 
+    // 작성 & 수정 & 삭제
     let moveToWrite = () => {
         navigate(`/reply/write/` + hotelId)
     }
-    // 추가 (수정 & 삭제)
     let onUpdate = (id) => {
         navigate('/reply/update/' + id, {state: {userInfo: userInfo}})
     }
@@ -67,10 +75,10 @@ let ReplyList = () => {
                 alert('삭제 중 오류가 발생했습니다.');
             });
     };
-    let deleteItem =(id) => {
-       if (window.confirm('정말로 삭제하시겠습니까?')){
-           onDelete(id)
-       }
+    let deleteItem = (id) => {
+        if (window.confirm('정말로 삭제하시겠습니까?')) {
+            onDelete(id)
+        }
     }
 
 // ----------------- Table -------------------------
@@ -81,16 +89,16 @@ let ReplyList = () => {
                 <td>
                     <UserProfile data={reply}/>
                 </td>
-                {reply.customerId === userInfo.id?
+                {parseInt(reply.customerId) === parseInt(userInfo.id) ?
                     <tr>
                         <td>
                             <Button onClick={() => onUpdate(reply.id)}>수정</Button>
                         </td>
                         <td>
-                            <Button onClick={() =>deleteItem(reply.id)}>삭제</Button>
+                            <Button onClick={() => deleteItem(reply.id)}>삭제</Button>
                         </td>
                     </tr>
-                    :null}
+                    : null}
             </tr>
         )
     }
@@ -105,6 +113,9 @@ let ReplyList = () => {
                     </td>
                 </tr>
                 <tr>
+                    <td>[평균 별점 : {average.toFixed(1)}]</td>
+                </tr>
+                <tr>
                     <th></th>
                     <th></th>
                     <th></th>
@@ -116,6 +127,13 @@ let ReplyList = () => {
                 ))}
                 </tbody>
             </Table>
+            <Pagination>
+                {[...Array(totalPages).keys()].map(num => (
+                    <Pagination.Item key={num + 1} active={num + 1 === page} onClick={() => setPage(num + 1)}>
+                        {num + 1}
+                    </Pagination.Item>
+                ))}
+            </Pagination>
         </Container>
     )
 }
