@@ -1,22 +1,17 @@
-package com.nc13.Trip.project.model;
+package com.nc13.hotel.model;
+
+import lombok.Data;
 
 import java.util.Date;
-import lombok.Data;
 
 @Data
 public class ReplyDTO {
     private int id;
-    private String content;
+    private int customerId;
+    private int hotelId;
     private String title;
+    private String content;
     private Date entryDate;
     private Date modifyDate;
     private int score;
-
-
-
-    // ----------  reference -------
-    private double price;
-    private int customerId;
-    private int hotelId;
-    private String hotelName;
 }
