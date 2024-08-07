@@ -1,70 +1,136 @@
-import {Container} from "react-bootstrap";
-import {useState} from "react";
+import {Button, Container, FormControl, Table} from "react-bootstrap";
+import {useEffect, useState} from "react";
 import {FaStar} from "react-icons/fa";
+import axios from "axios";
+import {useLocation, useNavigate, useParams} from "react-router-dom";
 
 let Update = () => {
     let [inputs, setInputs] = useState({
-        score: 0,
+        id: '',
+        hotelId: '',
+        customerId: '',
+        score: '',
         title: '',
         content: ''
     })
+    let params = useParams()
+    let id = params.id
 
-    // 수정 후 페이지 이동 : useNavigate
+    let location = useLocation()
+    let userInfo = location.state?.userInfo || {id: null}
+    let navigate = useNavigate()
+
+    // 수정 후 페이지 이동
+    let moveToNext = () => {
+        let hotelId = parseInt(inputs.hotelId)
+        navigate('/reply/replyList2/' + hotelId, {state: {userInfo: userInfo}})
+    }
+    // 제출
+    let onSubmit = async (e) => {
+        e.preventDefault()
+        try {
+            let response = await axios.post('http://localhost:8080/reply/update', inputs, {
+                withCredentials: true
+            })
+            console.log("Response data: ", response.data)
+            if (response.status === 200) {
+                moveToNext()
+            }
+        } catch (error) {
+            console.error("Error reply: ", error)
+        }
+    }
 
     // 아이콘 별점
-    let ARRAY = [1,2,3,4,5];
-    let [score, setScore] = useState([false,false,false,false,false])
+    let ARRAY = [0, 1, 2, 3, 4];
+    let [score, setScore] = useState([false, false, false, false, false])
     let starScore = (index) => {
-        let newScore = ARRAY.map((_, i) => i < index);
+        let newScore = ARRAY.map((_, i) => i <= index);
         setScore(newScore);
         setInputs({
             ...inputs,
-            score: index
+            score: index + 1
         })
     }
-    {ARRAY.map((el, index) => (
-        <FaStar key={index} size="14"></FaStar>
-    ))}
 
     let onChange = (e) => {
         let {name, value} = e.target
-        setInputs({
-          ...inputs,
-          [name] : value
-        })
+        setInputs(prev => ({
+            ...prev,
+            [name]: value
+        }))
     }
+    useEffect(() => {
+        let getUpdate = async () => {
+            let response = await axios.get('http://localhost:8080/reply/selectOne/' + id, {
+                withCredentials: true
+            })
+            if (response.status === 200) {
+                let replyData = response.data.replyOne
+                setInputs(prev => ({
+                    ...prev,
+                    id: replyData.id,
+                    hotelId: parseInt(replyData.hotelId),
+                    customerId: replyData.customerId,
+                    score: replyData.score,
+                    title: replyData.title,
+                    content: replyData.content
+                }))
+                setScore(ARRAY.map((_, i) => i < replyData.score))
+            }
+        }
+        getUpdate()
+    }, [id]);
 
-    return(
+    return (
         <Container className={"mt-3"}>
-            <thead>
-            <tr>
-                <td>[리뷰 수정하기]</td>
-            </tr>
-            </thead>
-            <tbody>
-            <tr>
-                <td>호텔은 만족하셨나요?</td>
-                <td>
-                    {ARRAY.map((el, index) =>(
-                        <FaStar key={index} size="24"
-                                onClick={()=> starScore(el)}
-                        color={score[index] ? "#ffc107" : "#e4e5e9"}
-                        style={{cursor: 'pointer'}}/>
-                    ))}
-                </td>
-            </tr>
-            <tr>
-                <td>리뷰를 작성해주세요.</td>
-            </tr>
-            <tr>
-                <td>제목</td>
-                <input type={'text'} name={'title'} value={inputs.title} onChange={onChange}/>
-            </tr>
-            <tr>
-                <td>내용</td>
-                <textarea name={'content'} value={inputs.content} onChange={onChange}></textarea>
-            </tr>
-            </tbody>
+            <form onSubmit={onSubmit}>
+                <Table striped bordered hover>
+                    <thead>
+                    <tr>
+                        <td colSpan={2} className={'text-center'}>
+                            [리뷰 수정하기]
+                        </td>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td className={'text-center'}>호텔은 만족하셨나요?</td>
+                        <td>
+                            {ARRAY.map((el, index) => (
+                                <FaStar key={index} size="24"
+                                        onClick={() => starScore(index)}
+                                        color={score[index] ? "#ffc107" : "#e4e5e9"}
+                                        style={{cursor: 'pointer'}}/>
+                            ))}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colSpan={2} className={'text-center'}>
+                            리뷰를 작성해주세요.
+                        </td>
+                    </tr>
+                    <tr>
+                        <td className={'text-center'}>제목</td>
+                        <td>
+                            <FormControl type={'text'} name={'title'} value={inputs.title} onChange={onChange}/>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td className={'text-center'}>내용</td>
+                        <td>
+                        <textarea name={'content'} className={'form-control'} value={inputs.content}
+                                  onChange={onChange}></textarea>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td colSpan={2} className={'text-center'}>
+                            <Button type={'submit'}>수정</Button>
+                        </td>
+                    </tr>
+                    </tbody>
+                </Table>
+            </form>
         </Container>
     )
 }
